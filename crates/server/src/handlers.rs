@@ -143,6 +143,17 @@ pub async fn song_url(Path(id): Path<String>, Query(q): Query<CommonQuery>) -> R
     let redirect = is_redirect(&q.redirect);
     match provider::url_info(&id, br).await {
         Ok(info) => {
+            if info.url.is_empty() {
+                // 上游未下发播放地址（网易云对数据中心 IP 风控 / 无版权 / 需 VIP 常见；code 仍为 200 但 url 为空）
+                // 明确报错而非静默 200 空 url，避免前端把 JSON 当音频源加载且无从诊断
+                return problem(
+                    502,
+                    "UPSTREAM_EMPTY_URL",
+                    "upstream returned no playable url",
+                    Some(format!("id={id} br={br} (netease 风控/无版权/无 VIP 时常见)")),
+                    Some("/v1/songs/:id/url".into()),
+                );
+            }
             if redirect && !info.url.is_empty() {
                 return Redirect::temporary(&info.url).into_response();
             }

@@ -165,6 +165,15 @@ pub async fn main(req: Request, _env: Env, _ctx: Context) -> Result<Response> {
             match weapi_post(&endpoint, &body).await {
                 Ok(v) => {
                     let info = mapping::map_url(&v, &id);
+                    if info.url.is_empty() {
+                        // 上游未下发播放地址（网易云对数据中心 IP 风控 / 无版权 / 需 VIP 常见；code 仍为 200 但 url 为空）
+                        // 明确报错而非静默 200 空 url（避免前端把 JSON 当音频源加载失败且无从诊断）
+                        let detail = format!(
+                            "upstream returned empty url (id={} br={}) upstream={}",
+                            id, br, &v.to_string()[..v.to_string().len().min(300)]
+                        );
+                        return problem(502, "UPSTREAM_EMPTY_URL", "upstream returned no playable url", Some(detail));
+                    }
                     if redirect && !info.url.is_empty() {
                         let h = cors_headers();
                         h.set("Location", &info.url).ok();
