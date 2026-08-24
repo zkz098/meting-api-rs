@@ -5,6 +5,14 @@ fn str_or_empty(v: Option<&Value>) -> String {
     v.and_then(|x| x.as_str()).unwrap_or("").to_string()
 }
 
+fn force_https(s: String) -> String {
+    if s.starts_with("http://") {
+        format!("https://{}", &s[7..])
+    } else {
+        s
+    }
+}
+
 fn artists_from_ar(ar: Option<&Value>) -> Vec<String> {
     match ar {
         Some(Value::Array(arr)) => arr.iter().map(|x| str_or_empty(x.get("name"))).filter(|s| !s.is_empty()).collect(),
@@ -37,7 +45,7 @@ pub fn map_song(v: &Value) -> Song {
     let pic_url = v.get("al").and_then(|al| al.get("picUrl")).and_then(|x| x.as_str())
         .or_else(|| v.get("album").and_then(|al| al.get("picUrl")).and_then(|x| x.as_str()))
         .or_else(|| v.get("picUrl").and_then(|x| x.as_str()))
-        .map(|s| s.to_string());
+        .map(|s| force_https(s.to_string()));
 
     let duration = v.get("dt").and_then(|x| x.as_u64())
         .or_else(|| v.get("duration").and_then(|x| x.as_u64()));
@@ -101,6 +109,7 @@ pub fn map_pic(v: &Value, size: u32) -> PicInfo {
     let base = v.get("songs").and_then(|arr| arr.as_array()).and_then(|arr| arr.first())
         .and_then(|s| s.get("al")).and_then(|al| al.get("picUrl")).and_then(|x| x.as_str())
         .unwrap_or("");
+    let base = force_https(base.to_string());
     let url = if base.is_empty() { "".into() } else { format!("{base}?param={size}y{size}") };
     PicInfo { url, size: Some(size) }
 }
