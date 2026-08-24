@@ -6,6 +6,9 @@ license.workspace = true
 repository.workspace = true
 description = "Rust Meting API for Cloudflare Workers and Vercel"
 
+[lib]
+crate-type = ["cdylib", "rlib"]
+
 [workspace]
 members = ["crates/core", "crates/server", "crates/worker"]
 resolver = "2"
