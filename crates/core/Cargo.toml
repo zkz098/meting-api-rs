@@ -14,6 +14,7 @@ ecb = { version = "0.1", features = ["alloc"] }
 cipher = "0.4"
 base64 = "0.22"
 rand = "0.8"
+getrandom = { version = "0.2", features = ["js"] }
 num-bigint = "0.4"
 hex = "0.4"
 md-5 = "0.10"

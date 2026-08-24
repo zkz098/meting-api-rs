@@ -897,6 +897,7 @@ dependencies = [
  "cbc",
  "cipher",
  "ecb",
+ "getrandom 0.2.17",
  "hex",
  "md-5",
  "num-bigint",
@@ -927,6 +928,7 @@ dependencies = [
 name = "meting-worker"
 version = "0.1.0"
 dependencies = [
+ "getrandom 0.2.17",
  "meting-core",
  "serde",
  "serde_json",
