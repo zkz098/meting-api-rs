@@ -141,7 +141,7 @@ pub async fn song_url(Path(id): Path<String>, Query(q): Query<CommonQuery>) -> R
     if let Some(r) = require_netease(platform) { return r; }
     let br = q.br.unwrap_or(320000);
     let redirect = is_redirect(&q.redirect);
-    match provider::url_info(&id, br).await {
+    match provider::url_info_fallback(&id, br).await {
         Ok(info) => {
             if info.url.is_empty() {
                 // 上游未下发播放地址（网易云对数据中心 IP 风控 / 无版权 / 需 VIP 常见；code 仍为 200 但 url 为空）

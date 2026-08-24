@@ -91,9 +91,13 @@ pub fn map_song_detail(v: &Value) -> Vec<Song> {
 
 pub fn map_url(v: &Value, fallback_id: &str) -> UrlInfo {
     let data = v.get("data").and_then(|x| x.as_array()).and_then(|arr| arr.first());
+    // meting.js 同款兜底：data[0].uf.url（免费流量/试听地址）优先回落到 url
+    let uf_url = data.and_then(|d| d.get("uf")).and_then(|u| u.get("url")).and_then(|x| x.as_str());
     let url = data
         .and_then(|d| d.get("url"))
         .and_then(|x| x.as_str())
+        .filter(|s| !s.is_empty())
+        .or(uf_url)
         .map(|s| force_https(s.to_string()))
         .unwrap_or_default();
     let br = data.and_then(|d| d.get("br")).and_then(|x| x.as_u64()).unwrap_or(128000) as u32;

@@ -97,6 +97,16 @@ impl NeteaseProvider {
         }))
     }
 
+    /// eapi 版本（meting.js 同款姿势：/eapi/song/enhance/player/url + eapi 加密）
+    /// 返回 (form_body, endpoint)；用于 weapi 拿不到 url 时（如数据中心 IP 风控）的 fallback 尝试。
+    pub fn url_eapi_body(&self, ids: &[String], br: u32) -> (String, String) {
+        let url = "/api/song/enhance/player/url";
+        let payload = json!({ "ids": ids, "br": br });
+        let params = eapi_encrypt(url, &payload);
+        let body = format!("params={}", urlencoding::encode(&params));
+        (body, format!("{}{}", self.base, "/eapi/song/enhance/player/url"))
+    }
+
     pub fn lyric_body(&self, id: &str) -> String {
         self.build_weapi_body(&json!({
             "id": id,
