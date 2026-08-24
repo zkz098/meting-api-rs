@@ -91,7 +91,11 @@ pub fn map_song_detail(v: &Value) -> Vec<Song> {
 
 pub fn map_url(v: &Value, fallback_id: &str) -> UrlInfo {
     let data = v.get("data").and_then(|x| x.as_array()).and_then(|arr| arr.first());
-    let url = data.and_then(|d| d.get("url")).and_then(|x| x.as_str()).unwrap_or("").to_string();
+    let url = data
+        .and_then(|d| d.get("url"))
+        .and_then(|x| x.as_str())
+        .map(|s| force_https(s.to_string()))
+        .unwrap_or_default();
     let br = data.and_then(|d| d.get("br")).and_then(|x| x.as_u64()).unwrap_or(128000) as u32;
     let size = data.and_then(|d| d.get("size")).and_then(|x| x.as_u64()).unwrap_or(0);
     let _ = fallback_id;
