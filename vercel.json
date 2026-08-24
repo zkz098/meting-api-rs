@@ -1,0 +1,15 @@
+{
+  "functions": {
+    "crates/server/src/vercel.rs": {
+      "runtime": "rust@2"
+    }
+  },
+  "rewrites": [
+    { "source": "/v1/:path*", "destination": "/api/meting" },
+    { "source": "/api", "destination": "/api/meting" },
+    { "source": "/meting", "destination": "/api/meting" }
+  ],
+  "env": {
+    "RUST_LOG": "info"
+  }
+}

@@ -1,0 +1,14 @@
+[workspace]
+members = ["crates/core", "crates/server", "crates/worker"]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+repository = "https://github.com/your/meting-api-rs"
+
+[profile.release]
+codegen-units = 1
+lto = "fat"
+opt-level = 3

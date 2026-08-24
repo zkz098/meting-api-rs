@@ -1,0 +1,15 @@
+{
+  "openapi": "3.1.0",
+  "info": { "title": "meting-api-rs", "version": "0.1.0", "description": "Modern /v1 + legacy /api compat" },
+  "servers": [{ "url": "https://api.meting.rs" }],
+  "paths": {
+    "/v1/search": { "get": { "summary": "Search", "parameters": [{ "name": "platform", "in": "query" }, { "name": "q", "in": "query", "required": true }, { "name": "limit", "in": "query" }, { "name": "cursor", "in": "query" }] } },
+    "/v1/songs/{id}": { "get": { "summary": "Song detail" } },
+    "/v1/playlists/{id}": { "get": { "summary": "Playlist" } },
+    "/v1/songs/{id}/url": { "get": { "summary": "Stream URL" } },
+    "/v1/songs/{id}/pic": { "get": { "summary": "Cover" } },
+    "/v1/songs/{id}/lyric": { "get": { "summary": "Lyric" } },
+    "/v1/songs/batch": { "post": { "summary": "Batch" } },
+    "/api": { "get": { "summary": "Legacy compat (Sunset 2027-01-01)", "deprecated": true } }
+  }
+}

@@ -1,0 +1,9 @@
+/target
+/build
+/.wrangler
+/wrangler.toml.bak
+.env
+.env.*
+*.log
+.DS_Store
+Thumbs.db
