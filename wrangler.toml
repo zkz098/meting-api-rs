@@ -1,12 +1,12 @@
 name = "meting-api-rs"
-main = "build/worker/shim.mjs"
+main = "crates/worker/build/worker/shim.mjs"
 compatibility_date = "2026-08-22"
 compatibility_flags = ["nodejs_compat"]
 
 # Build: auto-install Rust if cargo missing (fixes `cargo: not found` on Cloudflare's default image)
 # Local: cargo exists -> fast path (no re-install). Cloudflare: installs rustup + wasm target once.
 [build]
-command = "if ! command -v cargo >/dev/null 2>&1; then curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y; fi && . \"$HOME/.cargo/env\" 2>/dev/null || true && rustup target add wasm32-unknown-unknown 2>/dev/null || true && cargo install -q worker-build 2>/dev/null || true && worker-build --release"
+command = "if ! command -v cargo >/dev/null 2>&1; then curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y; fi && . \"$HOME/.cargo/env\" 2>/dev/null || true && rustup target add wasm32-unknown-unknown 2>/dev/null || true && cargo install -q worker-build 2>/dev/null || true && cd crates/worker && worker-build --release"
 
 [vars]
 # METING_TOKEN = "your-secret" # set via `wrangler secret put METING_TOKEN`
