@@ -49,77 +49,24 @@ async fn weapi_post(url: &str, body: &str) -> Result<serde_json::Value, String> 
 }
 async fn eapi_post(url: &str, body: &str) -> Result<serde_json::Value, String> { weapi_post(url, body).await }
 
-/// eapi + Android 网易云客户端头（meting.js 同款姿势：随机 deviceId/requestId + NeteaseMusic UA）
-async fn eapi_post_android(url: &str, body: &str) -> Result<serde_json::Value, String> {
-    let mut dev = [0u8; 16];
-    let _ = getrandom::getrandom(&mut dev);
-    let device_id: String = dev.iter().map(|x| format!("{x:02X}")).collect();
-    let mut rid = [0u8; 8];
-    let _ = getrandom::getrandom(&mut rid);
-    let ts = u64::from_le_bytes(rid);
-    let request_id = format!("{ts}_{:04}", (ts >> 32) % 1000);
-    let headers = Headers::new();
-    headers.set("User-Agent", "Mozilla/5.0 (Linux; Android 11; M2007J3SC Build/RKQ1.200826.002; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/77.0.3865.120 MQQBrowser/6.2 TBS/045714 Mobile Safari/537.36 NeteaseMusic/8.7.01").ok();
-    headers.set("Referer", "music.163.com").ok();
-    headers.set("Content-Type", "application/x-www-form-urlencoded").ok();
-    headers.set("Cookie", &format!("osver=android; appver=8.7.01; os=android; deviceId={device_id}; channel=netease; requestId={request_id}; __remember_me=true")).ok();
-    let mut init = RequestInit::new();
-    init.with_method(Method::Post).with_headers(headers).with_body(Some(body.into()));
-    let req = Request::new_with_init(url, &init).map_err(|e| e.to_string())?;
-    let mut resp = Fetch::Request(req).send().await.map_err(|e| e.to_string())?;
-    let status = resp.status_code();
-    let text = resp.text().await.map_err(|e| e.to_string())?;
-    if !(200..300).contains(&status) {
-        return Err(format!("upstream {status}: {}", &text[..text.len().min(600)]));
-    }
-    serde_json::from_str(&text).map_err(|e| format!("invalid json {e}: {}", &text[..text.len().min(600)]))
-}
-
-/// 三级 url fallback（weapi PC → eapi PC → eapi Android）
-/// 任一拿到非空 url 即返回；全空返回 Err(最后一级错误详情)
-async fn fetch_url_with_fallback(provider: &NeteaseProvider, id: &str, br: u32) -> Result<meting_core::UrlInfo, String> {
-    let mut errors: Vec<String> = Vec::new();
-
-    // 1) weapi PC（现状；住宅/国内 IP 下通常直接可用）
+/// 获取 /v1/songs/:id/url 上游地址（单路 weapi）。
+/// 实验结论（2026-08-24）：网易云对数据中心出口 IP 做风控，weapi/eapi/Android 客户端姿势
+/// 在 CF worker 出口均返回 data[0].code=404（url=null），已实测三级全灭；
+/// 仅住宅/国内云 IP 可拿到 url。故不再做多级 fallback（徒增上游调用与延迟），
+/// 空 url 由 handler 报 UPSTREAM_EMPTY_URL；真正可用需自托管 meting-server 到非风控 IP。
+async fn fetch_url(provider: &NeteaseProvider, id: &str, br: u32) -> Result<meting_core::UrlInfo, String> {
     let body = provider.url_body(&[id.to_string()], br);
     let endpoint = provider.endpoint("/weapi/song/enhance/player/url");
     match weapi_post(&endpoint, &body).await {
         Ok(v) => {
             let info = mapping::map_url(&v, id);
-            if !info.url.is_empty() {
-                return Ok(info);
+            if info.url.is_empty() {
+                return Err(format!("weapi returned no url: {}", &v.to_string()[..v.to_string().len().min(300)]));
             }
-            errors.push(format!("weapi empty: {}", &v.to_string()[..v.to_string().len().min(300)]));
+            Ok(info)
         }
-        Err(e) => errors.push(e),
+        Err(e) => Err(e),
     }
-
-    // 2) eapi PC（meting.js 端点族；数据中心 IP 下可能放行）
-    let (ebody, eurl) = provider.url_eapi_body(&[id.to_string()], br);
-    match eapi_post(&eurl, &ebody).await {
-        Ok(v) => {
-            let info = mapping::map_url(&v, id);
-            if !info.url.is_empty() {
-                return Ok(info);
-            }
-            errors.push(format!("eapi(PC) empty: {}", &v.to_string()[..v.to_string().len().min(300)]));
-        }
-        Err(e) => errors.push(e),
-    }
-
-    // 3) eapi + Android 客户端头（meting.js 完整姿势）
-    match eapi_post_android(&eurl, &ebody).await {
-        Ok(v) => {
-            let info = mapping::map_url(&v, id);
-            if !info.url.is_empty() {
-                return Ok(info);
-            }
-            errors.push(format!("eapi(android) empty: {}", &v.to_string()[..v.to_string().len().min(300)]));
-        }
-        Err(e) => errors.push(e),
-    }
-
-    Err(errors.join(" | "))
 }
 
 #[derive(Debug, Deserialize)]
@@ -233,7 +180,7 @@ pub async fn main(req: Request, _env: Env, _ctx: Context) -> Result<Response> {
             let br: u32 = url.query_pairs().find(|(k,_)| k=="br").and_then(|(_,v)| v.parse().ok()).unwrap_or(320000);
             let redirect = url.query_pairs().any(|(k,v)| k=="redirect" && v=="1");
             let provider = NeteaseProvider::default();
-            match fetch_url_with_fallback(&provider, &id, br).await {
+            match fetch_url(&provider, &id, br).await {
                 Ok(info) => {
                     if info.url.is_empty() {
                         // 上游未下发播放地址（网易云对数据中心 IP 风控 / 无版权 / 需 VIP 常见；code 仍为 200 但 url 为空）

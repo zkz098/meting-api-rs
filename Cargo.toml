@@ -21,6 +21,8 @@ license = "MIT"
 repository = "https://github.com/your/meting-api-rs"
 
 [profile.release]
-codegen-units = 1
-lto = "fat"
-opt-level = 3
+# Worker 发行配置：性能优先，兼顾构建速度（2026-08-24 实验调优）
+opt-level = 3            # 保持满优化（wasm 体积敏感、热路径饱和优化收益明确）
+lto = "thin"             # fat → thin：链接期并行，构建显著提速；wasm16 上性能差通常 <1%
+codegen-units = 4        # 并行代码生成（4 路）；对最终优化质量影响 <5%，换构建 2-4x 加速
+panic = "abort"          # wasm 无 unwinding：省 ~10% 体积，上传/冷启动更快；worker 语义一致
